@@ -1,0 +1,48 @@
+name: data-sender
+
+services:
+  backend:
+    image: data-sender-backend:2.0.0
+    build:
+      context: ../backend
+      dockerfile: Dockerfile
+    container_name: data-sender-backend
+    restart: unless-stopped
+    environment:
+      DATA_FILE_PATH: /data/data.txt
+      
+      # Переменная из backend/server.py
+      ALLOWED_ORIGINS: "http://localhost:8080,http://127.0.0.1:8080"
+    volumes:
+      - ./data:/data
+    networks:
+      - app-net
+    healthcheck:
+      test:
+        - CMD
+        - python
+        - -c
+        - "import socket; socket.create_connection(('127.0.0.1', 8000), timeout=2)"
+      interval: 10s
+      timeout: 5s
+      retries: 5
+      start_period: 10s
+
+  frontend:
+    image: data-sender-frontend:2.0.0
+    build:
+      context: ../frontend
+      dockerfile: Dockerfile
+    container_name: data-sender-frontend
+    restart: unless-stopped
+    depends_on:
+      backend:
+        condition: service_healthy
+    ports:
+      - "8080:80"
+    networks:
+      - app-net
+
+networks:
+  app-net:
+    driver: bridge
